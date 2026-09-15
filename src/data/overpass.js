@@ -2,7 +2,10 @@
 // Overpass 공개 인스턴스. 서버마다 CORS 정책·혼잡도가 달라 순서대로 시도한다.
 // overpass-api.de 는 일부 배포 도메인에서 CORS를 거부하고, kumi.systems 는 무응답인 경우가 있어
 // 응답이 확인된 private.coffee 를 앞에 둔다.
+// 1순위는 같은 도메인의 서버리스 프록시(api/overpass.js) — 브라우저 CORS 제약을 받지 않는다.
+// 로컬 개발(vite dev)에서는 /api 가 없어 404가 나고 즉시 다음 항목으로 넘어간다.
 const ENDPOINTS = [
+  '/api/overpass',
   'https://overpass.private.coffee/api/interpreter',
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
@@ -15,6 +18,7 @@ async function overpass(query) {
     try {
       const res = await fetch(url, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'data=' + encodeURIComponent(query),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       })
