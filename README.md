@@ -60,28 +60,38 @@ src/
 - 한 번에 분석하는 계단은 최대 200개(길이 상위순). 서울 전역 일괄 분석은 미지원.
 - DEM 해상도가 90m라 짧은 계단의 상승고는 오차가 있다. 상승고 1m 미만이면 OSM `step_count` 또는 경사 추정으로 대체하고 출처를 함께 표시한다.
 
-## 배포 (GitHub Pages)
+## 배포 (Vercel)
 
-이 저장소는 `main`에 push하면 GitHub Actions가 빌드해서 Pages로 자동 배포한다
-(`.github/workflows/deploy.yml`). 빌드 전에 `npm test`가 돌아서 점수 로직이 깨지면 배포되지 않는다.
+`main` 에 push하면 Vercel이 자동으로 빌드·배포한다. 별도 워크플로 파일은 없다.
 
-최초 1회만:
+- 운영 주소: https://seoul-stair-access.vercel.app
+- 저장소: https://github.com/greenhopper-design/seoul-stair-access
 
 ```bash
-# 1) github.com 에서 빈 저장소 생성 (README 체크 해제)
-# 2) 로컬 저장소 연결 후 push
-git remote add origin https://github.com/<사용자명>/<저장소명>.git
-git push -u origin main
-# 3) 저장소 Settings > Pages > Build and deployment > Source 를 "GitHub Actions" 로 변경
+git add -A && git commit -m "메시지" && git push   # 1~2분 뒤 자동 반영
 ```
 
-이후에는 코드를 고치고 `git commit && git push` 하면 몇 분 뒤 사이트가 갱신된다.
-주소는 `https://<사용자명>.github.io/<저장소명>/` 이며, `vite.config.js`의 `base: './'`
-덕분에 하위경로에서도 그대로 동작한다.
+### Overpass 호출 구조 — 왜 이렇게 되어 있나
+공개 Overpass 인스턴스는 시점마다 살아있는 곳이 다르다. 실측한 실패 양상:
+
+| 원인 | 사례 |
+|---|---|
+| 배포 도메인에 대한 CORS 거부 | overpass-api.de |
+| 과부하 무응답 / 504 | kumi.systems, private.coffee |
+| 지역 한정 데이터 | osm.ch (스위스만 보유, 서울 계단 0개) |
+| 클라우드 IP 요청 제한 | 서버리스에서 호출 시 429 |
+
+그래서 `src/data/overpass.js` 는 서로 다른 서버 4곳에 **동시에** 요청하고 가장 먼저
+성공한 응답을 쓴다(`Promise.any`). 목록에는 같은 도메인의 서버리스 프록시
+`api/overpass.js` 도 포함되어 있어, 브라우저 CORS가 막히는 경우의 우회로가 된다
+(로컬 개발에서는 `/api` 가 없어 404 → 나머지 경로가 처리).
+각 서버가 받는 동시 요청은 1건이라 이용 정책에 어긋나지 않는다.
+
+트래픽이 커지면 자체 Overpass 인스턴스를 띄우고 이 목록을 교체하는 것이 정답이다.
 
 ### 공개 시 유의
-- 지도 타일(OpenStreetMap), Overpass, Nominatim, Open-Meteo 모두 브라우저에서 직접 호출하는
-  무료 공개 API다. 서버·API 키가 필요 없는 대신 각 서비스의 이용 정책상 대량 트래픽에는
-  적합하지 않다. 발표·시연 규모에서는 문제없다.
+- 지도 타일(OpenStreetMap), Overpass, Nominatim, Open-Meteo 모두 브라우저에서 직접
+  호출하는 무료 공개 API다. 서버·API 키가 필요 없는 대신 대량 트래픽에는 적합하지 않다.
 - Nominatim은 초당 1회 이상 호출을 금지한다. 검색 버튼을 연타하지 않는다.
-- 트래픽이 커지면 Overpass 자체 인스턴스나 결과 캐싱을 붙여야 한다.
+- 모든 외부 요청에 타임아웃이 걸려 있다(Overpass 40s, Open-Meteo 20s, Nominatim 15s).
+  응답이 없으면 다음 서버 또는 대체 추정으로 넘어가고, 무한 로딩에 빠지지 않는다.
