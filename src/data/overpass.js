@@ -1,34 +1,36 @@
 // OpenStreetMap Overpass API — 실제 데이터 (계단 highway=steps, 엘리베이터 highway=elevator)
-// Overpass 공개 인스턴스. 서버마다 CORS 정책·혼잡도가 달라 순서대로 시도한다.
-// overpass-api.de 는 일부 배포 도메인에서 CORS를 거부하고, kumi.systems 는 무응답인 경우가 있어
-// 응답이 확인된 private.coffee 를 앞에 둔다.
-// 1순위는 같은 도메인의 서버리스 프록시(api/overpass.js) — 브라우저 CORS 제약을 받지 않는다.
-// 로컬 개발(vite dev)에서는 /api 가 없어 404가 나고 즉시 다음 항목으로 넘어간다.
+// 공개 Overpass 인스턴스는 시점마다 살아있는 곳이 다르다(과부하·클라우드 IP 차단·지역 한정).
+// 순차 시도하면 죽은 서버에서 매번 수십 초를 버리므로, 서로 다른 서버에 동시에 던지고
+// 가장 먼저 성공한 응답을 쓴다. 각 서버가 받는 동시 요청은 1건이라 이용 정책에 어긋나지 않는다.
+// '/api/overpass' 는 같은 도메인의 서버리스 프록시로, 브라우저 CORS 차단을 우회하는 경로다
+// (로컬 개발에서는 404가 나고 나머지 경로가 처리한다).
+// ponytail: 서버 목록 하드코딩. 실제 운영 규모가 되면 자체 Overpass 인스턴스로 교체.
 const ENDPOINTS = [
-  '/api/overpass',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
-  'https://overpass-api.de/api/interpreter',
+  '/api/overpass',
   'https://overpass.kumi.systems/api/interpreter',
 ]
-const TIMEOUT_MS = 40000 // 응답 없는 서버에서 무한 대기하지 않고 다음 서버로 넘어간다
+const TIMEOUT_MS = 40000
 
 async function overpass(query) {
-  let lastErr
-  for (const url of ENDPOINTS) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'data=' + encodeURIComponent(query),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      })
-      if (!res.ok) throw new Error('Overpass ' + res.status)
-      return await res.json()
-    } catch (e) {
-      lastErr = e
-    }
+  const body = 'data=' + encodeURIComponent(query)
+  const tryOne = async (url) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    if (!res.ok) throw new Error(`${new URL(url, location.href).host} → HTTP ${res.status}`)
+    return res.json()
   }
-  throw new Error('모든 Overpass 서버 응답 실패 (' + (lastErr?.message || lastErr) + ')')
+  try {
+    return await Promise.any(ENDPOINTS.map(tryOne))
+  } catch (e) {
+    const detail = e.errors ? e.errors.map((x) => x.message).join(' / ') : e.message
+    throw new Error('Overpass 서버 응답 실패 (' + detail + ')')
+  }
 }
 
 const R = 6371000
