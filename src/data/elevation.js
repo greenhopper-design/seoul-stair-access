@@ -12,7 +12,9 @@ async function openMeteoElevations(points) {
     const chunk = points.slice(i, i + 100)
     const lat = chunk.map((p) => p.lat.toFixed(6)).join(',')
     const lon = chunk.map((p) => p.lon.toFixed(6)).join(',')
-    const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`)
+    const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`, {
+      signal: AbortSignal.timeout(20000), // 응답이 없으면 포기하고 step_count·경사 추정으로 넘어간다
+    })
     if (!res.ok) throw new Error('Elevation API ' + res.status)
     const json = await res.json()
     json.elevation.forEach((v, k) => (out[i + k] = v))
