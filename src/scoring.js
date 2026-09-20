@@ -31,21 +31,33 @@ export const METRICS = [
   },
   {
     key: 'safety',
-    label: '난간·계단참 부족',
+    label: '법정 안전기준 미충족',
     unit: '',
-    help: '난간/계단참이 없거나 정보가 없으면 위험도를 높게 본다.',
-    value: (s) => safetyText(s),
-    norm: (s) => (facility(s.handrail) + facility(s.landing)) / 2,
-    reason: '난간 또는 계단참 정보 부족',
+    help:
+      '건축물의 피난·방화구조 등의 기준에 관한 규칙 제15조. 이 계단에 법적으로 요구되는 ' +
+      '난간·계단참·단높이 항목만 평가한다. 충족 0 / 정보 없음 60 / 미충족 100.',
+    value: (s) => legalText(s),
+    norm: (s) => legalNorm(s),
+    reason: '법정 난간·계단참 기준 미충족 또는 정보 없음',
   },
   {
     key: 'alternative',
     label: '대체 이동수단 부족',
-    unit: 'm',
-    help: '가장 가까운 엘리베이터까지의 거리. 400m 이상이면 100점.',
-    value: (s) => (s.nearestElevatorM == null ? '없음' : Math.round(s.nearestElevatorM)),
-    norm: (s) => (s.nearestElevatorM == null ? 100 : clamp((s.nearestElevatorM / 400) * 100)),
-    reason: '가까운 대체 엘리베이터 없음',
+    unit: '',
+    help:
+      '같은 동선의 에스컬레이터·경사로가 있으면 부담이 크게 줄고, 없으면 가장 가까운 ' +
+      '엘리베이터·에스컬레이터까지의 거리로 본다. 400m 이상이면 100점.',
+    value: (s) =>
+      s.selfAlt ? s.selfAlt : s.nearestElevatorM == null ? '없음' : Math.round(s.nearestElevatorM) + 'm',
+    norm: (s) =>
+      s.selfAlt === '에스컬레이터 병설'
+        ? 0
+        : s.selfAlt === '경사로 병설'
+          ? 20
+          : s.nearestElevatorM == null
+            ? 100
+            : clamp((s.nearestElevatorM / 400) * 100),
+    reason: '가까운 대체 이동수단 없음',
   },
   {
     key: 'detour',
@@ -69,12 +81,60 @@ export const DEFAULT_WEIGHTS = {
 
 const clamp = (v) => Math.max(0, Math.min(100, v))
 const round1 = (v) => Math.round(v * 10) / 10
-// 있음 → 0, 정보없음 → 60, 없음 → 100
-const facility = (v) => (v === true ? 0 : v === false ? 100 : 60)
-const safetyText = (s) =>
-  `난간 ${s.handrail === true ? '있음' : s.handrail === false ? '없음' : '정보없음'} / 계단참 ${
-    s.landing === true ? '있음' : s.landing === false ? '없음' : '정보없음'
-  }`
+
+// 건축물의 피난·방화구조 등의 기준에 관한 규칙 제15조
+//  - 높이 1m 초과 계단: 양옆에 난간 설치
+//  - 높이 3m 초과 계단: 높이 3m 이내마다 유효너비 120cm 이상의 계단참
+//  - (공동주택 외) 단높이 20cm 이하, 단너비 24cm 이상
+export const LEGAL = { handrailOverM: 1, landingEveryM: 3, maxRiserCm: 20, minTreadCm: 24 }
+
+const STATE_SCORE = { ok: 0, unknown: 60, fail: 100 }
+
+/** 이 계단에 '법적으로 요구되는' 항목만 골라 충족/미확인/미충족을 판정한다. */
+export function legalChecks(s) {
+  const out = []
+  if (s.riseM > LEGAL.handrailOverM) {
+    out.push({
+      name: '난간',
+      need: '양옆 설치 의무',
+      state: s.handrail === true ? 'ok' : s.handrail === false ? 'fail' : 'unknown',
+    })
+  }
+  if (s.riseM > LEGAL.landingEveryM) {
+    out.push({
+      name: '계단참',
+      need: `${Math.floor(s.riseM / LEGAL.landingEveryM)}개소 이상`,
+      state: s.landing === true ? 'ok' : s.landing === false ? 'fail' : 'unknown',
+    })
+  }
+  // 단높이는 OSM에 계단 수가 실제로 기록된 경우에만 평가한다.
+  // 계단 수를 상승고에서 환산한 경우 단높이가 상수로 고정되어 판정이 순환논리가 되기 때문이다.
+  if (s.stepCountSource === 'OSM step_count' && s.stepCount > 0) {
+    const riser = (s.riseM / s.stepCount) * 100
+    out.push({
+      name: '단높이',
+      need: `${LEGAL.maxRiserCm}cm 이하`,
+      actual: `${riser.toFixed(0)}cm`,
+      state: riser <= LEGAL.maxRiserCm ? 'ok' : 'fail',
+    })
+  }
+  return out
+}
+
+function legalNorm(s) {
+  const checks = legalChecks(s)
+  if (!checks.length) return 0 // 높이 1m 이하 — 법정 의무 없음
+  return checks.reduce((a, c) => a + STATE_SCORE[c.state], 0) / checks.length
+}
+
+function legalText(s) {
+  const checks = legalChecks(s)
+  if (!checks.length) return '해당 없음'
+  const fail = checks.filter((c) => c.state === 'fail').length
+  const unknown = checks.filter((c) => c.state === 'unknown').length
+  if (!fail && !unknown) return `${checks.length}개 항목 충족`
+  return `${checks.length}개 항목 중 미충족 ${fail} · 미확인 ${unknown}`
+}
 
 /** 계단 하나의 점수와 지표별 기여도 */
 export function scoreStair(stair, weights = DEFAULT_WEIGHTS) {

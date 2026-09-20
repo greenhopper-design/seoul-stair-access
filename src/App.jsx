@@ -52,9 +52,12 @@ export default function App() {
     try {
       const r = await analyzeArea(region.bbox, setStatus)
       setRaw(r)
+      const cached = r.cachedAt
+        ? ` · 저장본 사용 (${new Date(r.cachedAt).toLocaleString('ko-KR')} 수집)`
+        : ''
       setStatus(
         r.stairs.length
-          ? `분석 완료 — ${r.gu ? r.gu + ' ' : ''}계단 ${r.stairs.length}개`
+          ? `분석 완료 — ${r.gu ? r.gu + ' ' : ''}계단 ${r.stairs.length}개${cached}`
           : '이 영역에서 OpenStreetMap 계단(highway=steps) 데이터를 찾지 못했습니다. 영역을 넓혀 보세요.'
       )
     } catch (e) {

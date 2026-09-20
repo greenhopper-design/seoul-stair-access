@@ -41,7 +41,7 @@ export default function MapView({ mapRef, stairs, elevators, selected, onSelect,
     layer.clearLayers()
     markersRef.current.clear()
 
-    // 대체 이동수단은 참조 정보이므로 무채색 작은 표식
+    // 대체 이동수단(엘리베이터·에스컬레이터)은 참조 정보이므로 무채색 작은 표식
     elevators.forEach((e) => {
       L.circleMarker([e.lat, e.lon], {
         radius: 3,
@@ -120,7 +120,7 @@ export default function MapView({ mapRef, stairs, elevators, selected, onSelect,
         <div><i style={{ background: '#d9784f' }} />60–79 높음</div>
         <div><i style={{ background: '#e0b19b' }} />40–59 보통</div>
         <div><i style={{ background: '#b5b3ad' }} />0–39 낮음</div>
-        <div><i style={{ background: '#fff', border: '1px solid #6b6b6b', borderRadius: '50%' }} />엘리베이터</div>
+        <div><i style={{ background: '#fff', border: '1px solid #6b6b6b', borderRadius: '50%' }} />엘리베이터·에스컬레이터</div>
       </div>
     </div>
   )
