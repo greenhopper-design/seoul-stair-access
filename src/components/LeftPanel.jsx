@@ -69,7 +69,7 @@ export default function LeftPanel({ region, onRegion, onAnalyze, onUseMapView, w
         {status && <p className={'status' + (status.startsWith('분석 실패') ? ' err' : '')}>{status}</p>}
         {stats && (
           <p className="status">
-            엘리베이터 {stats.elevators}개
+            대체 이동수단 {stats.elevators}개
             {stats.total > stats.shown && ` · 영역 내 계단 ${stats.total}개 중 길이 상위 ${stats.shown}개만 분석`}
           </p>
         )}

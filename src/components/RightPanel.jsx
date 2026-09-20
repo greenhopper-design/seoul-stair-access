@@ -176,7 +176,8 @@ export default function RightPanel({ stair, rank }) {
         </dl>
         <p className="note-text">
           보행속도는 Tobler 보행속도 함수에 경사를 넣고 고령자 계수 0.7을 곱한 값입니다.
-          우회 경로 자체는 아직 기하 추정이며 보행도로망 라우팅으로 교체 예정입니다.
+          Tobler 함수는 완만한 지형에서 보정된 식이라 계단 구간 값은 외삽이며, 우회 경로 자체도
+          아직 기하 추정입니다. 두 값의 절대치보다 계단과 우회의 상대 비교로 보시기 바랍니다.
         </p>
       </div>
     </div>

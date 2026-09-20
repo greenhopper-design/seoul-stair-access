@@ -52,7 +52,7 @@ npm test        # 점수 계산 로직 자체검증
 | 항목 | 근거 | 적용 |
 |---|---|---|
 | 난간·계단참·단높이 | [건축물의 피난·방화구조 등의 기준에 관한 규칙 제15조](https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%AC%BC%EC%9D%98%20%ED%94%BC%EB%82%9C%E3%86%8D%EB%B0%A9%ED%99%94%EA%B5%AC%EC%A1%B0%20%EB%93%B1%EC%9D%98%20%EA%B8%B0%EC%A4%80%EC%97%90%20%EA%B4%80%ED%95%9C%20%EA%B7%9C%EC%B9%99) | 높이 1m 초과 시 난간 의무, 3m 초과 시 3m마다 계단참. 그 계단에 **법적으로 요구되는 항목만** 평가 (`scoring.js`의 `legalChecks`) |
-| 보행 소요시간 | [Tobler 보행속도 함수](https://en.wikipedia.org/wiki/Tobler%27s_hiking_function) | `W = 6·exp(−3.5·|S+0.05|)` km/h에 경사를 넣고 고령자 계수 0.7 적용. 고정 0.7 m/s를 대체 (`data/detour.js`) |
+| 보행 소요시간 | [Tobler 보행속도 함수](https://en.wikipedia.org/wiki/Tobler%27s_hiking_function) | `W = 6·exp(−3.5·\|S+0.05\|)` km/h에 경사를 넣고 고령자 계수 0.7 적용. 고정 0.7 m/s를 대체 (`data/detour.js`). 완만한 지형에서 보정된 식이라 계단 구간은 외삽이며, 화면에 그렇게 표기한다 |
 | 대체 이동수단의 범위 | [AccessMap](https://github.com/AccessMap/accessmap) (UW TCAT) | 엘리베이터뿐 아니라 에스컬레이터·경사로를 대체 경로로 취급. 같은 계단에 병설되어 있으면 감점을 크게 낮춘다 |
 | 수집 태그 | [OpenSidewalks](https://github.com/OpenSidewalks) 계열 스키마 | `surface`, `lit`, `tactile_paving`, `wheelchair`, `conveying`, `ramp` 추가 수집·표시 |
 | 결측 처리 | [PathAble-AI](https://github.com/s2002kumar/pathable-ai) | "관측값·추정값·규칙의 결과·기록 없음은 서로 다르다". 기록이 없으면 '정보 없음'으로 두고 미충족으로 단정하지 않는다 |
