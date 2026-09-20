@@ -1,9 +1,9 @@
 export default function Header() {
   return (
-    <div className="header">
+    <div className="topbar">
       <h1>계단 접근성 분석 지도</h1>
       <span className="en">Vertical Accessibility Finder</span>
-      <span className="sub">서울에서 개선이 가장 필요한 계단을 찾아드립니다.</span>
+      <span className="note">서울 도시계단 고령자 접근성 개선 우선순위 분석</span>
     </div>
   )
 }

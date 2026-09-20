@@ -22,6 +22,18 @@ export default function App() {
   const selectedStair = stairs.find((s) => s.id === selected) || null
   const selectedRank = selectedStair ? stairs.indexOf(selectedStair) + 1 : null
 
+  // 하단 상태 표시줄용 요약
+  const summary = useMemo(() => {
+    if (!stairs.length) return null
+    return {
+      count: stairs.length,
+      avg: (stairs.reduce((a, s) => a + s.score, 0) / stairs.length).toFixed(1),
+      critical: stairs.filter((s) => s.score >= 80).length,
+      noElevator: stairs.filter((s) => s.nearestElevatorM == null).length,
+      selected: selectedRank != null ? `${selectedRank}위` : null,
+    }
+  }, [stairs, selectedRank])
+
   const useMapView = useCallback(() => {
     const b = mapRef.current?.getBounds()
     if (!b) return
@@ -36,7 +48,7 @@ export default function App() {
     if (!region) return
     setLoading(true)
     setSelected(null)
-    setStatus('분석을 시작합니다…')
+    setStatus('분석 시작')
     try {
       const r = await analyzeArea(region.bbox, setStatus)
       setRaw(r)
@@ -82,6 +94,7 @@ export default function App() {
             selected={selected}
             onSelect={setSelected}
             onFocus={(id) => setFocus({ id, t: Date.now() })}
+            summary={summary}
           />
         </div>
         <RightPanel stair={selectedStair} rank={selectedRank} />

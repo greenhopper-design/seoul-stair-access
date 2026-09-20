@@ -104,11 +104,12 @@ export function scoreAll(stairs, weights) {
     .sort((a, b) => b.score - a.score)
 }
 
+// 색은 강조색(--accent) 하나의 명도 단계다. 색상값은 index.css의 --l1~--l4와 같다.
 export function grade(score) {
-  if (score >= 80) return { label: '매우 높음', color: '#b00020', level: 4 }
-  if (score >= 60) return { label: '높음', color: '#d9762b', level: 3 }
-  if (score >= 40) return { label: '보통', color: '#8a8a3f', level: 2 }
-  return { label: '낮음', color: '#7a7a7a', level: 1 }
+  if (score >= 80) return { label: '매우 높음', color: '#c2410c', level: 4 }
+  if (score >= 60) return { label: '높음', color: '#d9784f', level: 3 }
+  if (score >= 40) return { label: '보통', color: '#e0b19b', level: 2 }
+  return { label: '낮음', color: '#b5b3ad', level: 1 }
 }
 
 /** 선정 이유 — 기여도 상위 지표 중 정규화 점수가 높은 것 */
