@@ -141,12 +141,13 @@ export default function RightPanel({ stair, rank }) {
         <h2>
           주변 고령인구{' '}
           {stair.elderlySource?.real ? (
-            <DataTag real>열린데이터광장 실측</DataTag>
+            <DataTag real>{stair.elderlySource.level} 실측</DataTag>
           ) : (
             <DataTag />
           )}
         </h2>
         <dl className="kv">
+          <dt>행정동</dt><dd>{stair.dong || '경계 밖 · 자치구 값 사용'}</dd>
           <dt>자치구</dt><dd>{stair.gu || '확인 불가'}</dd>
           <dt>65세 이상</dt><dd className="num">{stair.elderlyRatio} %</dd>
           {stair.elderlySource?.real && (
@@ -160,7 +161,7 @@ export default function RightPanel({ stair, rank }) {
         </dl>
         <p className="note-text">
           {stair.elderlySource?.real
-            ? '서울 열린데이터광장 생활인구(자치구별)에서 65세 이상 비율을 계산한 값입니다. 통근·방문 유입이 가장 적은 새벽 4시 기준이라 거주 인구에 가깝습니다. 행정동이 아닌 자치구 단위입니다.'
+            ? `서울 열린데이터광장 생활인구에서 65세 이상 비율을 계산한 ${stair.elderlySource.level} 단위 값입니다. 통근·방문 유입이 가장 적은 새벽 4시 기준이라 거주 인구에 가깝습니다.`
             : '실제 통계가 아닌 예시 데이터입니다. 열린데이터광장 호출이 실패하면 이 값으로 내려갑니다.'}
         </p>
       </div>

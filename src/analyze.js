@@ -2,6 +2,7 @@
 import { fetchArea, haversine } from './data/overpass.js'
 import { attachRise } from './data/elevation.js'
 import { loadElderlyRatios, elderlyRatioOf, guNameAt } from './data/elderly.js'
+import { loadDongBoundaries, dongAt } from './data/dong.js'
 import { estimateDetour } from './data/detour.js'
 
 const MAX_STAIRS = 200 // 발표용 MVP 상한. 초과 시 긴 계단 우선.
@@ -33,15 +34,21 @@ export async function analyzeArea(bbox, onProgress = () => {}) {
 
   onProgress('행정구역·고령인구를 확인하는 중…')
   const center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-  const [gu, elderlyData] = await Promise.all([
+  const [gu, elderlyData, boundaries] = await Promise.all([
     guNameAt(center[0], center[1]),
     loadElderlyRatios(),
+    loadDongBoundaries(),
   ])
-  const elderly = elderlyRatioOf(gu, elderlyData)
+  let elderly = null
 
   stairs.forEach((s) => {
-    s.elderlyRatio = elderly.ratio
-    s.elderlySource = elderly
+    // 고령인구는 계단마다 다르다 — 같은 자치구 안에서도 행정동이 갈린다
+    const dong = dongAt(s.center[0], s.center[1], boundaries)
+    const e = elderlyRatioOf({ dong, guName: gu, data: elderlyData })
+    elderly ??= e
+    s.dong = dong?.name || null
+    s.elderlyRatio = e.ratio
+    s.elderlySource = e
     s.gu = gu
 
     // 같은 계단에 에스컬레이터·경사로가 병설되어 있으면 그 자체가 대체 수단이다

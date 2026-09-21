@@ -84,7 +84,7 @@ export default function LeftPanel({ region, onRegion, onAnalyze, onUseMapView, w
           <dt>고령인구</dt>
           <dd>
             {elderly?.real ? (
-              <>생활인구 자치구 단위 <DataTag real>실측</DataTag></>
+              <>생활인구 {elderly.level} 단위 <DataTag real>실측</DataTag></>
             ) : (
               <>자치구 단위 <DataTag /></>
             )}
@@ -95,8 +95,7 @@ export default function LeftPanel({ region, onRegion, onAnalyze, onUseMapView, w
         </dl>
         <p className="note-text">
           우회거리는 상위 10개 계단만 실제 보행도로망 경로탐색으로 계산하고, 나머지는 기하
-          추정값이다. 고령인구는 자치구 단위이며, 행정동 단위로 올리려면 행정동 경계 데이터가
-          필요하다.
+          추정값이다. 고령인구는 계단이 속한 행정동 기준이며, 경계 밖이면 자치구 값을 쓴다.
         </p>
       </div>
 

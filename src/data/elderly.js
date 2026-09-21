@@ -20,16 +20,16 @@ const GU_CODE = {
 // API를 쓸 수 없을 때만 사용하는 자리표시값. 실제 통계가 아니다.
 const SAMPLE_RATIO = 19
 
-let cache = null // { ratios, date, source } — 분석마다 다시 받지 않는다
+let cache = null // API 응답 { dong, gu, date, source }
 
-/** 자치구별 65세 이상 비율을 한 번 받아 둔다. 실패하면 null. */
+/** 자치구별·행정동별 65세 이상 비율을 한 번 받아 둔다. 실패하면 null. */
 export async function loadElderlyRatios() {
-  if (cache !== undefined && cache !== null) return cache
+  if (cache) return cache
   try {
-    const res = await fetch('/api/elderly', { signal: AbortSignal.timeout(20000) })
+    const res = await fetch('/api/elderly', { signal: AbortSignal.timeout(25000) })
     if (!res.ok) throw new Error('HTTP ' + res.status)
     const json = await res.json()
-    if (!json.ratios) throw new Error(json.error || '응답 형식 오류')
+    if (!json.dong && !json.gu) throw new Error(json.error || '응답 형식 오류')
     cache = json
     return cache
   } catch {
@@ -38,15 +38,32 @@ export async function loadElderlyRatios() {
 }
 
 /**
- * 자치구의 65세 이상 비율(%).
- * data: loadElderlyRatios() 결과. null이면 예시값을 돌려준다.
+ * 계단 한 곳의 65세 이상 비율(%).
+ * 행정동이 판정되면 행정동 값, 안 되면 자치구 값, 둘 다 없으면 예시값으로 내려간다.
  */
-export function elderlyRatioOf(guName, data) {
-  const code = GU_CODE[guName]
-  if (data && code && data.ratios[code] != null) {
-    return { ratio: data.ratios[code], real: true, date: data.date, source: data.source }
+export function elderlyRatioOf({ dong, guName, data }) {
+  if (data?.dong && dong?.code && data.dong[dong.code] != null) {
+    return {
+      ratio: data.dong[dong.code],
+      real: true,
+      level: '행정동',
+      area: dong.name,
+      date: data.date,
+      source: data.source,
+    }
   }
-  return { ratio: SAMPLE_RATIO, real: false, source: '예시 데이터' }
+  const code = GU_CODE[guName]
+  if (data?.gu && code && data.gu[code] != null) {
+    return {
+      ratio: data.gu[code],
+      real: true,
+      level: '자치구',
+      area: guName,
+      date: data.date,
+      source: data.source,
+    }
+  }
+  return { ratio: SAMPLE_RATIO, real: false, level: '예시', area: guName, source: '예시 데이터' }
 }
 
 /** 자치구명 역지오코딩 (Nominatim, 실제 호출) */
