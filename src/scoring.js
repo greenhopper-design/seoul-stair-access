@@ -24,9 +24,11 @@ export const METRICS = [
     key: 'elderly',
     label: '주변 고령인구',
     unit: '%',
-    help: '65세 이상 인구비율. 30% 이상을 100점으로 본다.',
+    help:
+      '65세 이상 인구비율. 20% 이상을 100점으로 본다. 생활인구 기준 비율은 등록인구보다 낮게 ' +
+      '나오며, 서울 자치구 최고 수준이 약 19%라 그에 맞춰 상한을 잡았다.',
     value: (s) => s.elderlyRatio,
-    norm: (s) => clamp((s.elderlyRatio / 30) * 100),
+    norm: (s) => clamp((s.elderlyRatio / 20) * 100),
     reason: '주변 고령인구 비율이 높음',
   },
   {
