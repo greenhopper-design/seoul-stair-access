@@ -1,7 +1,7 @@
 // 분석 파이프라인: 계단 수집 → 상승고 → 고령인구 → 대체수단 → 우회거리
 import { fetchArea, haversine } from './data/overpass.js'
 import { attachRise } from './data/elevation.js'
-import { elderlyRatioAt, guNameAt } from './data/elderly.js'
+import { loadElderlyRatios, elderlyRatioOf, guNameAt } from './data/elderly.js'
 import { estimateDetour } from './data/detour.js'
 
 const MAX_STAIRS = 200 // 발표용 MVP 상한. 초과 시 긴 계단 우선.
@@ -22,7 +22,7 @@ export async function analyzeArea(bbox, onProgress = () => {}) {
   if (stairs.length > MAX_STAIRS) {
     stairs = [...stairs].sort((a, b) => b.lengthM - a.lengthM).slice(0, MAX_STAIRS)
   }
-  if (!stairs.length) return { stairs: [], elevators: [], total: 0, gu: null, cachedAt }
+  if (!stairs.length) return { stairs: [], elevators: [], total: 0, gu: null, cachedAt, elderly: null }
 
   // 엘리베이터와 에스컬레이터를 함께 '대체 이동수단' 후보로 본다 (AccessMap이 경사로·승강설비를
   // 대체 경로로 취급하는 방식과 같다)
@@ -33,10 +33,15 @@ export async function analyzeArea(bbox, onProgress = () => {}) {
 
   onProgress('행정구역·고령인구를 확인하는 중…')
   const center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
-  const gu = await guNameAt(center[0], center[1])
+  const [gu, elderlyData] = await Promise.all([
+    guNameAt(center[0], center[1]),
+    loadElderlyRatios(),
+  ])
+  const elderly = elderlyRatioOf(gu, elderlyData)
 
   stairs.forEach((s) => {
-    s.elderlyRatio = elderlyRatioAt(s.center[0], s.center[1], gu)
+    s.elderlyRatio = elderly.ratio
+    s.elderlySource = elderly
     s.gu = gu
 
     // 같은 계단에 에스컬레이터·경사로가 병설되어 있으면 그 자체가 대체 수단이다
@@ -58,7 +63,7 @@ export async function analyzeArea(bbox, onProgress = () => {}) {
     s.detour = estimateDetour(s)
   })
 
-  return { stairs, elevators: alternatives, total, gu, cachedAt }
+  return { stairs, elevators: alternatives, total, gu, cachedAt, elderly }
 }
 
 export const SEOUL_BBOX = [37.42, 126.76, 37.71, 127.19]

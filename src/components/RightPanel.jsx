@@ -3,6 +3,8 @@ import { grade, reasons, legalChecks } from '../scoring.js'
 import { stairLabel } from '../analyze.js'
 import DataTag from './DataTag.jsx'
 
+const formatDate = (d) => (d ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '')
+
 export default function RightPanel({ stair, rank }) {
   if (!stair)
     return (
@@ -136,13 +138,30 @@ export default function RightPanel({ stair, rank }) {
       </div>
 
       <div className="block">
-        <h2>주변 고령인구 <DataTag /></h2>
+        <h2>
+          주변 고령인구{' '}
+          {stair.elderlySource?.real ? (
+            <DataTag real>열린데이터광장 실측</DataTag>
+          ) : (
+            <DataTag />
+          )}
+        </h2>
         <dl className="kv">
           <dt>자치구</dt><dd>{stair.gu || '확인 불가'}</dd>
           <dt>65세 이상</dt><dd className="num">{stair.elderlyRatio} %</dd>
+          {stair.elderlySource?.real && (
+            <>
+              <dt>기준일</dt>
+              <dd className="num small muted">
+                {formatDate(stair.elderlySource.date)} 04시
+              </dd>
+            </>
+          )}
         </dl>
         <p className="note-text">
-          실제 통계가 아닌 예시 데이터. 서울 열린데이터광장 행정동별 등록인구 API 연결 시 대체됨.
+          {stair.elderlySource?.real
+            ? '서울 열린데이터광장 생활인구(자치구별)에서 65세 이상 비율을 계산한 값입니다. 통근·방문 유입이 가장 적은 새벽 4시 기준이라 거주 인구에 가깝습니다. 행정동이 아닌 자치구 단위입니다.'
+            : '실제 통계가 아닌 예시 데이터입니다. 열린데이터광장 호출이 실패하면 이 값으로 내려갑니다.'}
         </p>
       </div>
 

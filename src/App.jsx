@@ -107,6 +107,7 @@ export default function App() {
           loading={loading}
           status={status}
           stats={raw.stairs.length ? { shown: raw.stairs.length, total: raw.total, elevators: raw.elevators.length } : null}
+          elderly={raw.elderly}
         />
         <div className="center">
           <MapView
