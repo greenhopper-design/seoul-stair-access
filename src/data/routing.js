@@ -10,8 +10,10 @@
 
 const ENDPOINT = 'https://valhalla1.openstreetmap.de/route'
 const TIMEOUT_MS = 15000
-const BLOCK_RADIUS = 0.00008 // 약 9m — 계단만 막고 주변 도로는 남긴다
-const CACHE_PREFIX = 'stair-access:route:'
+const MAX_BLOCK_M = 9 // 계단만 막고 주변 골목은 남길 정도의 크기
+const MIN_BLOCK_M = 3 // 이보다 작게 막아야 하는 짧은 계단은 판정을 포기한다
+const CACHE_PREFIX = 'stair-access:route2:' // 제외 폴리곤 위치 수정 후 캐시 무효화
+const NO_PATH_CODE = 442 // Valhalla: No path could be found for input
 
 export const DATA_SOURCE = { real: true, label: '보행도로망 경로탐색' }
 
@@ -50,20 +52,71 @@ async function route(from, to, excludePolygon) {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const json = await res.json()
-  if (!json.trip) return null // 경로 없음 (제외 폴리곤 때문에 갈 길이 사라진 경우 포함)
-  return {
-    m: Math.round(json.trip.summary.length * 1000),
-    min: Math.round((json.trip.summary.time / 60) * 10) / 10,
+  if (json.trip) {
+    return {
+      m: Math.round(json.trip.summary.length * 1000),
+      min: Math.round((json.trip.summary.time / 60) * 10) / 10,
+    }
   }
+  // '경로가 없다'와 '서버가 응답하지 못했다'는 다르다. 후자를 우회로 없음으로 읽으면 안 된다.
+  if (json.error_code === NO_PATH_CODE) return 'no-path'
+  return null
 }
 
-const blockBox = ([lat, lon]) => [
-  [lon - BLOCK_RADIUS, lat - BLOCK_RADIUS],
-  [lon + BLOCK_RADIUS, lat - BLOCK_RADIUS],
-  [lon + BLOCK_RADIUS, lat + BLOCK_RADIUS],
-  [lon - BLOCK_RADIUS, lat + BLOCK_RADIUS],
-  [lon - BLOCK_RADIUS, lat - BLOCK_RADIUS],
-]
+const R = 6371000
+function metersBetween(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLon = toRad(b.lon - a.lon)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+/**
+ * 선을 따라 거리의 절반이 되는 지점.
+ * 가운데 '꼭짓점'을 쓰면 안 된다 — 꼭짓점 간격이 불규칙해서 끝점 바로 옆인 경우가 많고,
+ * 그러면 제외 폴리곤이 출발·도착점까지 덮어 실제로는 있는 우회로가 없다고 나온다.
+ */
+function midpointAlong(geometry) {
+  const pts = geometry.map(([lat, lon]) => ({ lat, lon }))
+  const segs = []
+  let total = 0
+  for (let i = 1; i < pts.length; i++) {
+    const d = metersBetween(pts[i - 1], pts[i])
+    segs.push(d)
+    total += d
+  }
+  let walked = 0
+  for (let i = 0; i < segs.length; i++) {
+    if (walked + segs[i] >= total / 2) {
+      const t = segs[i] === 0 ? 0 : (total / 2 - walked) / segs[i]
+      return {
+        lat: pts[i].lat + (pts[i + 1].lat - pts[i].lat) * t,
+        lon: pts[i].lon + (pts[i + 1].lon - pts[i].lon) * t,
+      }
+    }
+    walked += segs[i]
+  }
+  return pts[pts.length - 1]
+}
+
+/** 양 끝점이 반드시 폴리곤 밖에 남도록 크기를 줄인 정사각형 */
+function blockBox(mid, stair) {
+  const nearest = Math.min(metersBetween(mid, stair.start), metersBetween(mid, stair.end))
+  const sizeM = Math.min(MAX_BLOCK_M, nearest * 0.5)
+  if (sizeM < MIN_BLOCK_M) return null // 너무 짧은 계단 — 안전하게 막을 수 없다
+  const dLat = sizeM / 111320
+  const dLon = sizeM / (111320 * Math.cos((mid.lat * Math.PI) / 180))
+  return [
+    [mid.lon - dLon, mid.lat - dLat],
+    [mid.lon + dLon, mid.lat - dLat],
+    [mid.lon + dLon, mid.lat + dLat],
+    [mid.lon - dLon, mid.lat + dLat],
+    [mid.lon - dLon, mid.lat - dLat],
+  ]
+}
 
 /**
  * 계단 하나의 실제 우회 거리·시간.
@@ -73,12 +126,15 @@ export async function realDetour(stair) {
   const cached = readCache(stair.id)
   if (cached) return cached
 
+  const box = blockBox(midpointAlong(stair.geometry), stair)
+  if (!box) return null
+
   try {
     const direct = await route(stair.start, stair.end)
-    const around = await route(stair.start, stair.end, blockBox(stair.center))
+    const around = await route(stair.start, stair.end, box)
 
     // 계단을 막았더니 경로가 아예 없다 = 이 계단이 유일한 통로
-    if (!around) {
+    if (around === 'no-path') {
       const result = {
         detourM: null,
         detourMin: null,
@@ -92,7 +148,7 @@ export async function realDetour(stair) {
       saveCache(stair.id, result)
       return result
     }
-    if (!direct) return null
+    if (!direct || direct === 'no-path' || !around) return null
 
     const result = {
       detourM: around.m,
