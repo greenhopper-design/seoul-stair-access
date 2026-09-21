@@ -82,13 +82,14 @@ export default function LeftPanel({ region, onRegion, onAnalyze, onUseMapView, w
           <dt>총 상승고</dt><dd>Copernicus DEM 90m <DataTag real>실측</DataTag></dd>
           <dt>대체 이동수단</dt><dd>OSM 엘리베이터·에스컬레이터 <DataTag real>실시간</DataTag></dd>
           <dt>고령인구</dt><dd>자치구 단위 <DataTag /></dd>
-          <dt>우회거리</dt><dd>기하 추정식 <DataTag>예시 추정</DataTag></dd>
+          <dt>우회거리</dt><dd>보행도로망 경로탐색 <DataTag real>상위 10개</DataTag></dd>
           <dt>보행속도</dt><dd>Tobler 함수 <DataTag real>문헌</DataTag></dd>
           <dt>안전기준</dt><dd>피난·방화구조 규칙 제15조 <DataTag real>법령</DataTag></dd>
         </dl>
         <p className="note-text">
-          고령인구는 서울 열린데이터광장 행정동별 연령별 등록인구 API, 우회거리는 OSM 보행도로망
-          네트워크 분석으로 교체 예정. 현재 값은 실제 통계가 아님.
+          우회거리는 상위 10개 계단만 실제 보행도로망 경로탐색으로 계산하고, 나머지는 기하
+          추정값이다. 고령인구는 서울 열린데이터광장 행정동별 연령별 등록인구 API로 교체 예정이며
+          현재 값은 실제 통계가 아니다.
         </p>
       </div>
 

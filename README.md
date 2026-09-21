@@ -22,13 +22,13 @@ npm test        # 점수 계산 로직 자체검증
 | 총 상승고 | **실제** Open-Meteo Elevation (Copernicus DEM 90m) | `src/data/elevation.js` |
 | 대체 이동수단(엘리베이터) | **실제** OSM `highway=elevator` | `src/data/overpass.js` |
 | 고령인구 | **예시 데이터** (자치구 단위 자리표시값) | `src/data/elderly.js` |
-| 우회거리·추가시간 | **예시 추정** (기하 추정식) | `src/data/detour.js` |
+| 우회거리·추가시간 | **실제** 보행도로망 경로탐색 (상위 10개) / 나머지는 기하 추정 | `src/data/routing.js`, `src/data/detour.js` |
 
 예시 데이터는 실제 통계가 아니며 화면에서 항상 `예시 데이터` / `예시 추정` 태그로 표기된다.
 
 ### 실제 API 연결 지점
 - 고령인구 → `elderly.js`의 `elderlyRatioAt()`을 서울 열린데이터광장 행정동별 연령별 등록인구 API 호출로 교체
-- 우회거리 → `detour.js`의 `estimateDetour()`를 OSRM/GraphHopper foot 프로파일 라우팅으로 교체
+- 우회거리 → 상위 10개는 이미 Valhalla 보행 경로탐색을 쓴다(`routing.js`). 전체 계단으로 넓히려면 Valhalla를 직접 띄우고 `ENDPOINT`만 바꾼다
 - 고정밀 상승고 → `elevation.js`의 `openMeteoElevations()`를 서울시/VWorld DEM으로 교체
 
 ## 점수 구조 (`src/scoring.js`)
@@ -56,6 +56,16 @@ npm test        # 점수 계산 로직 자체검증
 | 대체 이동수단의 범위 | [AccessMap](https://github.com/AccessMap/accessmap) (UW TCAT) | 엘리베이터뿐 아니라 에스컬레이터·경사로를 대체 경로로 취급. 같은 계단에 병설되어 있으면 감점을 크게 낮춘다 |
 | 수집 태그 | [OpenSidewalks](https://github.com/OpenSidewalks) 계열 스키마 | `surface`, `lit`, `tactile_paving`, `wheelchair`, `conveying`, `ramp` 추가 수집·표시 |
 | 결측 처리 | [PathAble-AI](https://github.com/s2002kumar/pathable-ai) | "관측값·추정값·규칙의 결과·기록 없음은 서로 다르다". 기록이 없으면 '정보 없음'으로 두고 미충족으로 단정하지 않는다 |
+
+### 우회거리를 실제로 구하는 방법
+계단 양 끝점 사이 보행 경로를 두 번 구한다. 두 번째는 **계단 한가운데에 제외 폴리곤**을 씌워
+그 계단을 지나갈 수 없게 만든다. 두 경로의 차이가 '이 계단을 못 쓸 때 실제로 더 걸어야 하는 거리'다.
+계단을 막았더니 경로가 아예 사라지면 그 계단이 유일한 통로라는 뜻이라 우회 지표를 100점으로 둔다.
+
+폴리곤은 **선 길이의 중간점**에 놓고, 크기를 가장 가까운 끝점까지 거리의 절반으로 제한한다.
+가운데 꼭짓점에 놓으면 끝점까지 덮여 실제로는 있는 우회로가 없다고 나온다(초기 구현의 실제 오류).
+
+실측 비교(낙산성곽서1길): 기하 추정 +581m → 실제 경로탐색 **+154m**. 순위가 바뀔 만한 차이다.
 
 ### 단높이를 항상 평가하지 않는 이유
 OSM에 `step_count`가 없으면 계단 수를 상승고 ÷ 0.17m로 환산한다. 이 경우 단높이를 계산하면
