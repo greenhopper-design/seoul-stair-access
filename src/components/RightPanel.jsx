@@ -21,6 +21,8 @@ export default function RightPanel({ stair, rank }) {
   const g = grade(stair.score)
   const key = new Set(reasons(stair.parts).map((r) => r.key))
   const checks = legalChecks(stair)
+  const d = stair.detour
+  const routed = d.source === '보행도로망 경로탐색'
 
   return (
     <div className="panel right">
@@ -159,25 +161,45 @@ export default function RightPanel({ stair, rank }) {
       </div>
 
       <div className="block">
-        <h2>우회 이동 <DataTag>예시 추정</DataTag></h2>
+        <h2>
+          우회 이동{' '}
+          {routed ? (
+            <DataTag real>보행도로망 경로탐색</DataTag>
+          ) : (
+            <DataTag>예시 추정</DataTag>
+          )}
+        </h2>
         <dl className="kv">
           <dt>계단 이용</dt>
           <dd className="num">
-            {stair.lengthM.toFixed(0)} m · {stair.detour.stairMin} 분
-            <span className="small muted"> {stair.detour.stairSpeed} m/s</span>
+            {(d.stairM ?? stair.lengthM).toFixed?.(0) ?? d.stairM} m
+            {d.stairMin != null && ` · ${d.stairMin} 분`}
+            {!routed && <span className="small muted"> {d.stairSpeed} m/s</span>}
           </dd>
           <dt>우회</dt>
           <dd className="num">
-            {stair.detour.detourM} m · {stair.detour.detourMin} 분
-            <span className="small muted"> {stair.detour.flatSpeed} m/s</span>
+            {d.impossible ? (
+              <span>우회로 없음 — 이 계단이 유일한 통로</span>
+            ) : (
+              <>
+                {d.detourM} m{d.detourMin != null && ` · ${d.detourMin} 분`}
+                {!routed && <span className="small muted"> {d.flatSpeed} m/s</span>}
+              </>
+            )}
           </dd>
-          <dt>차이</dt>
-          <dd className="num">+{stair.detour.extraM} m · +{stair.detour.extraMin} 분</dd>
+          {!d.impossible && (
+            <>
+              <dt>차이</dt>
+              <dd className="num">
+                +{d.extraM} m{d.extraMin != null && ` · +${d.extraMin} 분`}
+              </dd>
+            </>
+          )}
         </dl>
         <p className="note-text">
-          보행속도는 Tobler 보행속도 함수에 경사를 넣고 고령자 계수 0.7을 곱한 값입니다.
-          Tobler 함수는 완만한 지형에서 보정된 식이라 계단 구간 값은 외삽이며, 우회 경로 자체도
-          아직 기하 추정입니다. 두 값의 절대치보다 계단과 우회의 상대 비교로 보시기 바랍니다.
+          {routed
+            ? '계단 한가운데를 막고 보행도로망에서 다시 경로를 구한 실제 거리입니다. 상위 10개 계단에만 적용됩니다.'
+            : 'Tobler 보행속도 함수 기반 기하 추정입니다. 상위 10개 계단은 분석 직후 실제 보행경로로 교체됩니다.'}
         </p>
       </div>
     </div>

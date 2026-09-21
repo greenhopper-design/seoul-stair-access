@@ -63,10 +63,13 @@ export const METRICS = [
     key: 'detour',
     label: '우회거리 증가',
     unit: 'm',
-    help: '계단을 피해 우회할 때 늘어나는 거리. 600m 이상을 100점으로 본다.',
-    value: (s) => Math.round(s.detour.extraM),
-    norm: (s) => clamp((s.detour.extraM / 600) * 100),
-    reason: '우회 시 이동거리가 크게 증가함',
+    help:
+      '계단을 피해 우회할 때 늘어나는 거리. 600m 이상을 100점으로 본다. ' +
+      '보행도로망에서 우회로 자체가 없으면(이 계단이 유일한 통로) 100점.',
+    value: (s) => (s.detour.impossible ? '우회로 없음' : Math.round(s.detour.extraM)),
+    norm: (s) => (s.detour.impossible ? 100 : clamp((s.detour.extraM / 600) * 100)),
+    reason: (s) =>
+      s?.detour?.impossible ? '우회로가 없어 이 계단이 유일한 통로임' : '우회 시 이동거리가 크게 증가함',
   },
 ]
 
@@ -151,7 +154,7 @@ export function scoreStair(stair, weights = DEFAULT_WEIGHTS) {
       norm: Math.round(norm),
       weight: w,
       contribution: (norm * w) / total, // 최종 점수에서 차지하는 실제 몫
-      reason: m.reason,
+      reason: typeof m.reason === 'function' ? m.reason(stair) : m.reason,
     }
   })
   const score = Math.round(parts.reduce((a, p) => a + p.contribution, 0))

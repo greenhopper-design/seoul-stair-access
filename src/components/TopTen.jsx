@@ -56,7 +56,12 @@ export default function TopTen({ stairs, selected, onSelect, onFocus, summary })
                   <td className="l">
                     {s.nearestElevatorM == null ? '없음' : `${Math.round(s.nearestElevatorM)} m`}
                   </td>
-                  <td className="num">+{s.detour.extraM} m</td>
+                  <td className="num">
+                    {s.detour.impossible ? '우회로 없음' : `+${s.detour.extraM} m`}
+                    {s.detour.source === '보행도로망 경로탐색' && (
+                      <span className="small muted" title="실제 보행도로망 경로탐색 결과"> 실측</span>
+                    )}
+                  </td>
                   <td className="l">
                     <button
                       title="지도에서 위치 보기"
