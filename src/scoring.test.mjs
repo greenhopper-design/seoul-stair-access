@@ -16,7 +16,7 @@ assert.equal(scoreStair(worst).score, 100, '최악 조건은 100점 (상한 클�
 
 // 가중치가 0인 지표는 점수에 영향이 없어야 한다
 const onlyElderly = { burden: 0, rise: 0, elderly: 100, safety: 0, alternative: 0, detour: 0 }
-assert.equal(scoreStair({ ...base, elderlyRatio: 15 }, onlyElderly).score, 50)
+assert.equal(scoreStair({ ...base, elderlyRatio: 10 }, onlyElderly).score, 50) // 상한 20%의 절반
 assert.equal(scoreStair({ ...base, stepCount: 60 }, onlyElderly).score, 0)
 
 // 법정 기준: 정보없음(null)은 '있음'보다 나쁘고 '없음'보다 낫다
